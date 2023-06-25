@@ -14,7 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 
 APPID = "1097"
 RUN_MODES = [
-    "Auto", 
+    "Auto",
     "High",
     "Medium",
     "Low",
@@ -26,6 +26,14 @@ RUN_MODES_WITH_DURATION = [
     "Party",
     "Away"
     ]
+HEATING_MODES = [
+    "Auto",
+    "High",
+    "Medium",
+    "Low",
+    "Party",
+    ]
+
 
 # There are more modes than actual presets. However, if a mode does not match a preset
 # HA can show the mode, but the preset is left blank. As such, make sure the values match

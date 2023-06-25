@@ -13,13 +13,10 @@ from homeassistant.const import (
 	ATTR_TEMPERATURE
 )
 from homeassistant.components.climate.const import (
-	CURRENT_HVAC_HEAT,
-	CURRENT_HVAC_IDLE,
-	HVAC_MODE_HEAT,
-	HVAC_MODE_OFF,
 	SUPPORT_TARGET_TEMPERATURE,
 	SUPPORT_PRESET_MODE,
-	PRESET_AWAY 
+	HVACMode,
+	HVACAction
 )
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.core import HomeAssistant
@@ -95,14 +92,14 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
 
 		self._name = name
 
-		if is_on == True:
-			self._hvac_mode = HVAC_MODE_HEAT
-		else:
-			self._hvac_mode = HVAC_MODE_OFF
-		
-		self._hvac_list = [HVAC_MODE_OFF, HVAC_MODE_HEAT]
-		self._support_flags = SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
 		self._preset_mode = "Low"
+
+		self._hvac_mode = HVACMode.HEAT if self._preset_mode in jg_client.HEATING_MODES else HVACMode.OFF
+		self._hvac_action = HVACAction.HEATING if is_on else HVACAction.IDLE
+
+		self._hvac_actions = [HVACAction.HEATING, HVACAction.IDLE]
+		self._hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
+		self._support_flags = SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
 
 	@property
 	def id(self):
@@ -138,11 +135,11 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
 	
 	@property
 	def hvac_action(self):
-		return self._hvac_mode
+		return self._hvac_action
 
 	@property
 	def hvac_modes(self):
-		return self._hvac_list
+		return self._hvac_modes
 
 	@property
 	def preset_mode(self):
@@ -163,16 +160,17 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
 
 		self._target_temp = temperature
 		await self._client.SetThermostatTemperature(self._id, temperature)
+		await self.coordinator.async_request_refresh()
 
 	async def async_set_preset_mode(self, preset_mode):
 		self._preset_mode = preset_mode
 		await self._client.SetThermostatPreset(self._id, preset_mode)
+		await self.coordinator.async_request_refresh()
 
 	def setValues(self, thermostat: thermostat.Thermostat):
 		self._current_temp = thermostat.tempCurrent
 		self._target_temp = thermostat.tempSetPoint
 		self._preset_mode = thermostat.stateName
-		if thermostat.on == True:
-			self._hvac_mode = HVAC_MODE_HEAT
-		else:
-			self._hvac_mode = HVAC_MODE_OFF
+		self._hvac_mode = HVACMode.HEAT if self._preset_mode in jg_client.HEATING_MODES else HVACMode.OFF
+		self._hvac_action = HVACAction.HEATING if thermostat.on else HVACAction.IDLE
+
