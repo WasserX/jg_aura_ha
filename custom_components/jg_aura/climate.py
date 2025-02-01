@@ -9,12 +9,11 @@ from . import thermostat
 from datetime import timedelta
 
 from homeassistant.const import (
-	TEMP_CELSIUS, 
+	UnitOfTemperature,
 	ATTR_TEMPERATURE
 )
 from homeassistant.components.climate.const import (
-	SUPPORT_TARGET_TEMPERATURE,
-	SUPPORT_PRESET_MODE,
+	ClimateEntityFeature,
 	HVACMode,
 	HVACAction
 )
@@ -68,7 +67,7 @@ async def async_setup_platform(
 	)
 
 	coordinator.async_add_listener(update_entities)
-	
+
 	await coordinator.async_config_entry_first_refresh()
 
 	for thermostat in coordinator.data.thermostats:
@@ -99,7 +98,7 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
 
 		self._hvac_actions = [HVACAction.HEATING, HVACAction.IDLE]
 		self._hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
-		self._support_flags = SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
+		self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
 
 	@property
 	def id(self):
@@ -119,7 +118,7 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
 
 	@property
 	def temperature_unit(self):
-		return TEMP_CELSIUS
+		return UnitOfTemperature.CELSIUS
 
 	@property
 	def current_temperature(self):
@@ -132,7 +131,7 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
 	@property
 	def hvac_mode(self):
 		return self._hvac_mode
-	
+
 	@property
 	def hvac_action(self):
 		return self._hvac_action
@@ -148,7 +147,7 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
 	@property
 	def preset_modes(self):
 		return jg_client.RUN_MODES
-	
+
 	@property
 	def supported_features(self):
 		return self._support_flags
@@ -173,4 +172,3 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
 		self._preset_mode = thermostat.stateName
 		self._hvac_mode = HVACMode.HEAT if self._preset_mode in jg_client.HEATING_MODES else HVACMode.OFF
 		self._hvac_action = HVACAction.HEATING if thermostat.on else HVACAction.IDLE
-
