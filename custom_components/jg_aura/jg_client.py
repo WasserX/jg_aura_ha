@@ -67,6 +67,10 @@ MODES = [
 	"ON",
 ]
 
+# When setting values through the API, a delay is required to get the updated values,
+# otherwise the API may return stale data.
+API_DELAY_SECONDS = 1.5
+
 class JGClient:
     gatewayDeviceId = None
     loggedIn = False

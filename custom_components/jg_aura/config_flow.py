@@ -5,8 +5,10 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_HOST
 
 from .const import DOMAIN, CONF_REFRESH_RATE, CONF_ENABLE_HOT_WATER
 
+DEFAULT_HOST = "https://emea-salprod02-api.arrayent.com:8081/zdk/services/zamapi"
+
 DATA_SCHEMA = vol.Schema({
-    vol.Required(CONF_HOST): str,
+    vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
     vol.Required(CONF_EMAIL): str,
     vol.Required(CONF_PASSWORD): str,
     vol.Optional(CONF_REFRESH_RATE, default=30): int,

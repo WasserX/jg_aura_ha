@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 
@@ -41,6 +42,7 @@ async def async_setup_entry(
 
     def update_entities():
         switch.setState(coordinator.data.is_on)
+        switch.async_write_ha_state()
 
     coordinator = DataUpdateCoordinator(
 		hass,
@@ -79,7 +81,17 @@ class HotWaterSwitch(SwitchEntity):
     async def async_turn_on(self):
         await self._client.SetHotWater(self._id, True)
         self._is_on = True
+        self.async_write_ha_state()
+        # Wait for API to process the change before querying
+        await asyncio.sleep(jg_client.API_DELAY_SECONDS)
+        # Trigger coordinator refresh to pick up the state change
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self):
         await self._client.SetHotWater(self._id, False)
         self._is_on = False
+        self.async_write_ha_state()
+        # Wait for API to process the change before querying
+        await asyncio.sleep(jg_client.API_DELAY_SECONDS)
+        # Trigger coordinator refresh to pick up the state change
+        await self.coordinator.async_request_refresh()

@@ -1,5 +1,5 @@
 import aiohttp
-import time
+import asyncio
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ async def callUrlWithRetry(url, attempts = 3):
                         return await response.text()
                     
                     _LOGGER.warn(f'Calling "{url}" resulted in status code "{response.status}" on attempt "{attempt}".')
-                    time.sleep(attempts)
+                    await asyncio.sleep(1)
         except Exception as e:
             _LOGGER.error(f'Unexpected error calling URL "{url}"; message: {e}')
     

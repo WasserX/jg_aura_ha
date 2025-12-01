@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_HOST, UnitOfTemperature, ATTR_TEMPERATURE
@@ -158,11 +159,19 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
 
 		self._target_temp = temperature
 		await self._client.SetThermostatTemperature(self._id, temperature)
+		self.async_write_ha_state()
+		# Wait for API to process the change before querying
+		await asyncio.sleep(jg_client.API_DELAY_SECONDS)
+		# Trigger coordinator refresh to pick up the state change from API
 		await self.coordinator.async_request_refresh()
 
 	async def async_set_preset_mode(self, preset_mode):
 		self._preset_mode = preset_mode
 		await self._client.SetThermostatPreset(self._id, preset_mode)
+		self.async_write_ha_state()
+		# Wait for API to process the change before querying
+		await asyncio.sleep(jg_client.API_DELAY_SECONDS)
+		# Trigger coordinator refresh to pick up the state change from API
 		await self.coordinator.async_request_refresh()
 
 	def setValues(self, thermostat: thermostat.Thermostat):
