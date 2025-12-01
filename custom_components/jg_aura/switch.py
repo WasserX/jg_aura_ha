@@ -4,6 +4,8 @@ import logging
 from datetime import timedelta
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_HOST
+from homeassistant.config_entries import ConfigEntry
+from .const import DOMAIN
 from . import jg_client
 
 from homeassistant.components.switch import SwitchEntity
@@ -18,16 +20,17 @@ from homeassistant.helpers.update_coordinator import (
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_platform(
+async def async_setup_entry(
     hass: HomeAssistant,
-    config: ConfigType,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
+    """Set up the switch platform from a config entry."""
 
-    host = discovery_info[CONF_HOST]
-    email = discovery_info[CONF_EMAIL]
-    password = discovery_info[CONF_PASSWORD]
+    config_data = hass.data[DOMAIN][entry.entry_id]
+    host = config_data[CONF_HOST]
+    email = config_data[CONF_EMAIL]
+    password = config_data[CONF_PASSWORD]
     
     client = jg_client.JGClient(host, email, password)
     hotWater = await client.GetHotWater()

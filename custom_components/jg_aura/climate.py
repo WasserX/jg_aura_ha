@@ -2,16 +2,13 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_HOST
-from . import CONF_REFRESH_RATE
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_HOST, UnitOfTemperature, ATTR_TEMPERATURE
+from homeassistant.config_entries import ConfigEntry
+from .const import CONF_REFRESH_RATE, DOMAIN
 from . import jg_client
 from . import thermostat
 from datetime import timedelta
 
-from homeassistant.const import (
-	UnitOfTemperature,
-	ATTR_TEMPERATURE
-)
 from homeassistant.components.climate.const import (
 	ClimateEntityFeature,
 	HVACMode,
@@ -29,16 +26,18 @@ from homeassistant.helpers.update_coordinator import (
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_platform(
+async def async_setup_entry(
 	hass: HomeAssistant,
-	config: ConfigType,
+	entry: ConfigEntry,
 	async_add_entities: AddEntitiesCallback,
-	discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
+	"""Set up the climate platform from a config entry."""
 
-	host = discovery_info[CONF_HOST]
-	email = discovery_info[CONF_EMAIL]
-	password = discovery_info[CONF_PASSWORD]
+	config_data = hass.data[DOMAIN][entry.entry_id]
+	host = config_data[CONF_HOST]
+	email = config_data[CONF_EMAIL]
+	password = config_data[CONF_PASSWORD]
+	refresh_rate = config_data.get(CONF_REFRESH_RATE, 30)
 
 	thermostatEntities = []
 	client = jg_client.JGClient(host, email, password)
@@ -63,7 +62,7 @@ async def async_setup_platform(
 		_LOGGER,
 		name = "climate",
 		update_method = async_update_data,
-		update_interval = timedelta(seconds = discovery_info[CONF_REFRESH_RATE])
+		update_interval = timedelta(seconds = refresh_rate)
 	)
 
 	coordinator.async_add_listener(update_entities)
