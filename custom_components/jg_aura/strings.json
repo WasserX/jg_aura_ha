@@ -1,0 +1,42 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "JGAura Thermostat Setup",
+        "description": "Enter your JGAura credentials to set up the integration.",
+        "data": {
+          "host": "API Host (optional)",
+          "email": "Email",
+          "password": "Password",
+          "refresh_rate": "Refresh Rate (seconds)",
+          "hot_water": "Enable Hot Water Control"
+        },
+        "data_description": {
+          "host": "Leave blank to use the default EMEA API endpoint"
+        }
+      },
+      "reauth": {
+        "title": "Update JGAura Credentials",
+        "description": "Your JGAura credentials for {email} are no longer valid. Please provide updated credentials.",
+        "data": {
+          "host": "API Host (optional)",
+          "email": "Email",
+          "password": "Password",
+          "refresh_rate": "Refresh Rate (seconds)",
+          "hot_water": "Enable Hot Water Control"
+        },
+        "data_description": {
+          "host": "Leave blank to use the default EMEA API endpoint"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password. Please check your credentials and try again.",
+      "cannot_connect": "Cannot connect to JGAura API. Please check your API host and internet connection."
+    },
+    "abort": {
+      "already_configured": "JGAura account is already configured.",
+      "reauth_successful": "Credentials updated successfully. The integration will now reload with the new credentials."
+    }
+  }
+}
