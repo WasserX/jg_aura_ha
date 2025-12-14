@@ -1,12 +1,13 @@
+"""Hot water data model."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass
 class HotWater:
-	def __init__(self, id, is_on):
-		self._id = id
-		self._is_on = is_on
+    """Hot water data."""
 
-	@property
-	def id(self):
-		return self._id
-
-	@property
-	def is_on(self):
-		return self._is_on
+    id: str
+    is_on: bool

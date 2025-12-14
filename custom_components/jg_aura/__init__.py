@@ -1,33 +1,43 @@
 """JGAura integration for Home Assistant."""
+
+from __future__ import annotations
+
 from typing import Final
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.config_entries import ConfigEntry
 
-from .const import DOMAIN, CONF_ENABLE_HOT_WATER
+from .const import CONF_ENABLE_HOT_WATER
+from .jg_client import JGClient
+
+type JGAuraConfigEntry = ConfigEntry[JGClient]
 
 PLATFORMS: Final = [Platform.CLIMATE, Platform.SWITCH]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-	"""Set up JGAura from a config entry."""
-	hass.data.setdefault(DOMAIN, {})[entry.entry_id] = entry.data
+async def async_setup_entry(hass: HomeAssistant, entry: JGAuraConfigEntry) -> bool:
+    """Set up JGAura from a config entry."""
+    client = JGClient(
+        entry.data["host"],
+        entry.data["email"],
+        entry.data["password"],
+    )
+    entry.runtime_data = client
 
-	await hass.config_entries.async_forward_entry_setups(
-		entry,
-		[Platform.CLIMATE, Platform.SWITCH] if entry.data.get(CONF_ENABLE_HOT_WATER, True) else [Platform.CLIMATE]
-	)
+    platforms_to_setup = PLATFORMS
+    if not entry.data.get(CONF_ENABLE_HOT_WATER, True):
+        platforms_to_setup = [Platform.CLIMATE]
 
-	return True
+    await hass.config_entries.async_forward_entry_setups(entry, platforms_to_setup)
+
+    return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-	"""Unload a config entry."""
-	platforms = [Platform.CLIMATE, Platform.SWITCH] if entry.data.get(CONF_ENABLE_HOT_WATER, True) else [Platform.CLIMATE]
-	result = await hass.config_entries.async_unload_platforms(entry, platforms)
+async def async_unload_entry(hass: HomeAssistant, entry: JGAuraConfigEntry) -> bool:
+    """Unload a config entry."""
+    platforms_to_unload = PLATFORMS
+    if not entry.data.get(CONF_ENABLE_HOT_WATER, True):
+        platforms_to_unload = [Platform.CLIMATE]
 
-	if result:
-		hass.data[DOMAIN].pop(entry.entry_id)
-
-	return result
+    return await hass.config_entries.async_unload_platforms(entry, platforms_to_unload)

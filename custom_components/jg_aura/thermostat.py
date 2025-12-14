@@ -1,31 +1,17 @@
-class Thermostat():
-	def __init__(self, id, name, on, stateName, tempCurrent, tempSetPoint):
-		self._id = id
-		self._name = name
-		self._on = on
-		self._stateName = stateName
-		self._tempCurrent = tempCurrent
-		self._tempSetPoint = tempSetPoint
+"""Thermostat data model."""
 
-	@property
-	def id(self):
-		return self._id
+from __future__ import annotations
 
-	@property
-	def name(self):
-		return self._name
+from dataclasses import dataclass
 
-	@property
-	def on(self):
-		return self._on
-	@property
-	def stateName(self):
-		return self._stateName
 
-	@property
-	def tempCurrent(self):
-		return self._tempCurrent
+@dataclass
+class Thermostat:
+    """Thermostat data."""
 
-	@property
-	def tempSetPoint(self):
-		return self._tempSetPoint
+    id: str
+    name: str
+    on: bool
+    state_name: str
+    temp_current: float
+    temp_set_point: float

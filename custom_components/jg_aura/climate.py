@@ -1,182 +1,185 @@
+"""Climate platform for JGAura integration."""
+
 from __future__ import annotations
 
 import asyncio
-import logging
-
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_HOST, UnitOfTemperature, ATTR_TEMPERATURE
-from homeassistant.config_entries import ConfigEntry
-from .const import CONF_REFRESH_RATE, DOMAIN
-from . import jg_client
-from . import thermostat
 from datetime import timedelta
+import logging
+from typing import Any, ClassVar
 
-from homeassistant.components.climate.const import (
-	ClimateEntityFeature,
-	HVACMode,
-	HVACAction
-)
 from homeassistant.components.climate import ClimateEntity
+from homeassistant.components.climate.const import (
+    ClimateEntityFeature,
+    HVACAction,
+    HVACMode,
+)
+from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
-    UpdateFailed
+    UpdateFailed,
 )
+
+from . import jg_client, thermostat
+from .__init__ import JGAuraConfigEntry
+from .const import CONF_REFRESH_RATE
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_entry(
-	hass: HomeAssistant,
-	entry: ConfigEntry,
-	async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    entry: JGAuraConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
-	"""Set up the climate platform from a config entry."""
+    """Set up the climate platform from a config entry."""
+    client = entry.runtime_data
+    refresh_rate = entry.data.get(CONF_REFRESH_RATE, 30)
 
-	config_data = hass.data[DOMAIN][entry.entry_id]
-	host = config_data[CONF_HOST]
-	email = config_data[CONF_EMAIL]
-	password = config_data[CONF_PASSWORD]
-	refresh_rate = config_data.get(CONF_REFRESH_RATE, 30)
+    thermostat_entities: list[JGAuraThermostat] = []
 
-	thermostatEntities = []
-	client = jg_client.JGClient(host, email, password)
+    async def async_update_data() -> jg_client.gateway.Gateway:
+        """Update data from the API."""
+        try:
+            return await client.get_thermostats()
+        except Exception as err:
+            raise UpdateFailed(f"Failed to update thermostat data: {err}") from err
 
-	async def async_update_data():
-		return await client.GetThermostats()
+    coordinator = DataUpdateCoordinator(
+        hass,
+        _LOGGER,
+        name="climate",
+        update_method=async_update_data,
+        update_interval=timedelta(seconds=refresh_rate),
+        config_entry=entry,
+    )
 
-	def find_thermostat_data(id):
-		for t in coordinator.data.thermostats:
-			if t.id == id:
-				return t
-		return None
+    await coordinator.async_config_entry_first_refresh()
 
-	def update_entities():
-		for entity in thermostatEntities:
-			data = find_thermostat_data(entity.id)
-			entity.setValues(data)
-			entity.async_write_ha_state()
+    def update_entities() -> None:
+        """Update all entities when coordinator updates."""
+        for entity in thermostat_entities:
+            for therm in coordinator.data.thermostats:
+                if therm.id == entity.id:
+                    entity.set_values(therm)
+                    entity.async_write_ha_state()
 
-	coordinator = DataUpdateCoordinator(
-		hass,
-		_LOGGER,
-		name = "climate",
-		update_method = async_update_data,
-		update_interval = timedelta(seconds = refresh_rate)
-	)
+    coordinator.async_add_listener(update_entities)
 
-	coordinator.async_add_listener(update_entities)
+    for therm in coordinator.data.thermostats:
+        entity = JGAuraThermostat(
+            coordinator, client, coordinator.data.id, therm.id, therm.name, therm.on
+        )
+        entity.set_values(therm)
+        thermostat_entities.append(entity)
 
-	await coordinator.async_config_entry_first_refresh()
-
-	for thermostat in coordinator.data.thermostats:
-		jgt = JGAuraThermostat(coordinator, client, coordinator.data.id, thermostat.id, thermostat.name, thermostat.on)
-		jgt.setValues(thermostat)
-		thermostatEntities.append(jgt)
-
-	async_add_entities(thermostatEntities)
+    async_add_entities(thermostat_entities)
 
 
 class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
-	def __init__(self, coordinator, client, gateway_id, id, name, is_on):
-		super().__init__(coordinator)
+    """Representation of a JGAura thermostat."""
 
-		self._gateway_id = gateway_id
-		self._id = id
-		self._client = client
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:thermometer"
+    _attr_target_temperature_step = 0.5
+    _attr_min_temp = 5
+    _attr_max_temp = 35
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    _attr_hvac_modes: ClassVar = [HVACMode.OFF, HVACMode.HEAT]
+    _attr_supported_features: ClassVar = (
+        ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+    )
 
-		self._attr_unique_id = "jg_aura-" + str(id)
-		self._attr_icon = "mdi:temperature-celsius"
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        client: jg_client.JGClient,
+        gateway_id: str,
+        device_id: str,
+        name: str,
+        is_on: bool,
+    ) -> None:
+        """Initialize the thermostat."""
+        super().__init__(coordinator)
+        self._client = client
+        self._gateway_id = gateway_id
+        self._id = device_id
+        self._attr_name = name
+        self._attr_unique_id = f"jg_aura_{device_id}"
 
-		self._name = name
+        self._current_temp: float | None = None
+        self._target_temp: float | None = None
+        self._preset_mode: str = "Low"
+        self._hvac_mode = HVACMode.HEAT
+        self._hvac_action = HVACAction.HEATING if is_on else HVACAction.IDLE
 
-		self._preset_mode = "Low"
+    @property
+    def id(self) -> str:
+        """Return the thermostat ID."""
+        return self._id
 
-		self._hvac_mode = HVACMode.HEAT if self._preset_mode in jg_client.HEATING_MODES else HVACMode.OFF
-		self._hvac_action = HVACAction.HEATING if is_on else HVACAction.IDLE
+    @property
+    def current_temperature(self) -> float | None:
+        """Return the current temperature."""
+        return self._current_temp
 
-		self._hvac_actions = [HVACAction.HEATING, HVACAction.IDLE]
-		self._hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
-		self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+    @property
+    def target_temperature(self) -> float | None:
+        """Return the target temperature."""
+        return self._target_temp
 
-	@property
-	def id(self):
-		return self._id
+    @property
+    def hvac_mode(self) -> HVACMode:
+        """Return the current HVAC mode."""
+        return self._hvac_mode
 
-	@property
-	def name(self):
-		return self._name
+    @property
+    def hvac_action(self) -> HVACAction:
+        """Return the current HVAC action."""
+        return self._hvac_action
 
-	@property
-	def max_temp(self):
-		return 35
+    @property
+    def preset_mode(self) -> str | None:
+        """Return the current preset mode."""
+        return self._preset_mode
 
-	@property
-	def min_temp(self):
-		return 5
+    @property
+    def preset_modes(self) -> list[str]:
+        """Return the available preset modes."""
+        return jg_client.RUN_MODES
 
-	@property
-	def temperature_unit(self):
-		return UnitOfTemperature.CELSIUS
+    async def async_set_temperature(self, **kwargs: Any) -> None:
+        """Set new target temperature."""
+        temperature = kwargs.get(ATTR_TEMPERATURE)
+        if temperature is None:
+            return
 
-	@property
-	def current_temperature(self):
-		return self._current_temp
+        self._target_temp = temperature
+        await self._client.set_thermostat_temperature(self._id, temperature)
+        self.async_write_ha_state()
 
-	@property
-	def target_temperature(self):
-		return self._target_temp
+        await asyncio.sleep(jg_client.API_DELAY_SECONDS)
+        await self.coordinator.async_request_refresh()
 
-	@property
-	def hvac_mode(self):
-		return self._hvac_mode
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Set new preset mode."""
+        self._preset_mode = preset_mode
+        await self._client.set_thermostat_preset(self._id, preset_mode)
+        self.async_write_ha_state()
 
-	@property
-	def hvac_action(self):
-		return self._hvac_action
+        await asyncio.sleep(jg_client.API_DELAY_SECONDS)
+        await self.coordinator.async_request_refresh()
 
-	@property
-	def hvac_modes(self):
-		return self._hvac_modes
-
-	@property
-	def preset_mode(self):
-		return self._preset_mode
-
-	@property
-	def preset_modes(self):
-		return jg_client.RUN_MODES
-
-	@property
-	def supported_features(self):
-		return self._support_flags
-
-	async def async_set_temperature(self, **kwargs):
-		temperature = kwargs.get(ATTR_TEMPERATURE)
-		if temperature is None:
-			return
-
-		self._target_temp = temperature
-		await self._client.SetThermostatTemperature(self._id, temperature)
-		self.async_write_ha_state()
-		# Wait for API to process the change before querying
-		await asyncio.sleep(jg_client.API_DELAY_SECONDS)
-		# Trigger coordinator refresh to pick up the state change from API
-		await self.coordinator.async_request_refresh()
-
-	async def async_set_preset_mode(self, preset_mode):
-		self._preset_mode = preset_mode
-		await self._client.SetThermostatPreset(self._id, preset_mode)
-		self.async_write_ha_state()
-		# Wait for API to process the change before querying
-		await asyncio.sleep(jg_client.API_DELAY_SECONDS)
-		# Trigger coordinator refresh to pick up the state change from API
-		await self.coordinator.async_request_refresh()
-
-	def setValues(self, thermostat: thermostat.Thermostat):
-		self._current_temp = thermostat.tempCurrent
-		self._target_temp = thermostat.tempSetPoint
-		self._preset_mode = thermostat.stateName
-		self._hvac_mode = HVACMode.HEAT if self._preset_mode in jg_client.HEATING_MODES else HVACMode.OFF
-		self._hvac_action = HVACAction.HEATING if thermostat.on else HVACAction.IDLE
+    def set_values(self, therm: thermostat.Thermostat) -> None:
+        """Update entity values from thermostat data."""
+        self._current_temp = therm.temp_current
+        self._target_temp = therm.temp_set_point
+        self._preset_mode = therm.state_name
+        self._hvac_mode = (
+            HVACMode.HEAT
+            if self._preset_mode in jg_client.HEATING_MODES
+            else HVACMode.OFF
+        )
+        self._hvac_action = HVACAction.HEATING if therm.on else HVACAction.IDLE

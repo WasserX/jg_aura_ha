@@ -1,17 +1,16 @@
-class Gateway():
-	def __init__(self, id, name, thermostats):
-		self._id = id
-		self._name = name
-		self._thermostats = thermostats
+"""Gateway data model."""
 
-	@property
-	def id(self):
-		return self._id
+from __future__ import annotations
 
-	@property
-	def name(self):
-		return self._name
+from dataclasses import dataclass
 
-	@property
-	def thermostats(self):
-		return self._thermostats
+from .thermostat import Thermostat
+
+
+@dataclass
+class Gateway:
+    """Gateway data."""
+
+    id: str
+    name: str
+    thermostats: list[Thermostat]
