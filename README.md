@@ -1,64 +1,107 @@
-# John Guest Aura Home Assistant integration
-## Installation
-Clone the repo and copy the contents of custom_components.
-Add the following to your configuration.yaml
-
 # John Guest Aura Home Assistant Integration
 
-A Home Assistant custom integration for JG Aura thermostats and hot water control. Provides climate entities for thermostats and a switch entity for hot water with real-time state updates via cloud polling.
+A Home Assistant custom integration for JG Aura heating thermostats.
+
+It can reach the thermostats in two ways:
+
+- **Local (recommended)**: through the **SAL01 USB stick** plugged into the Home Assistant host.
+  No JG Aura gateway, no internet, no cloud account. Changes show up in Home Assistant within a
+  second, because the thermostats push them.
+- **Cloud**: through your JG Aura account, the JG Aura internet gateway and the Arrayent
+  servers. JG Aura is winding down support, and this mode stops working when the servers are
+  switched off.
 
 ## Features
 
-- **Thermostat Control**: Set temperature setpoints, change heating modes (Auto, High, Medium, Low, Party, Away, Frost)
-- **Hot Water Control**: Turn hot water on/off with a switch entity
-- **Real-time Updates**: Polling-based updates every 30 seconds (configurable)
+- **Thermostat control**: target temperature and presets (Auto, High, Medium, Low, Party, Away, Frost)
+- **Heating state**: shows whether each thermostat is calling for heat
+- **Hot water control** (cloud only): a switch entity for hot water
 
 ## Installation
 
-Copy the `custom_components/jg_aura` folder into your Home Assistant `custom_components/` directory
+### HACS
 
-## Setup
+Add this repository as a custom repository in HACS (category: Integration), install **JG Aura**,
+then restart Home Assistant.
 
-The integration uses Home Assistant's config flow UI for setup (no YAML configuration required):
+### Manual
 
-1. Go to **Settings → Devices & Services**
-2. Click **Create Integration** (bottom right)
-3. Search for **JGAura**
-4. Enter your credentials:
-   - **Email**: Your JG Aura account email
-   - **Password**: Your JG Aura account password
-   - **Host** (optional): Defaults to the official API endpoint `https://emea-salprod02-api.arrayent.com:8081/zdk/services/zamapi`. Override if using a different server.
-   - **Refresh Rate** (optional): Polling interval in seconds (default: 30)
-   - **Enable Hot Water**: Whether to expose hot water control (default: on)
+Copy the `custom_components/jg_aura` folder into your Home Assistant `custom_components/`
+directory and restart Home Assistant.
+
+## Local setup with the SAL01 stick
+
+The SAL01 is the small white USB stick (label "SAL01, 2.4 GHz") that plugs into the JG Aura
+internet gateway (the square SALJG30 box).
+
+1. Unplug the SAL01 from the gateway and plug it into the machine running Home Assistant.
+   The gateway is not used in this mode. The heating keeps working while the stick is moved:
+   the thermostats and the wiring centre work on their own.
+2. If Home Assistant runs in Docker, pass the stick into the container, using its stable path:
+
+   ```yaml
+   services:
+     homeassistant:
+       devices:
+         - /dev/serial/by-id/usb-Silicon_Labs_CP2104_USB_to_UART_Bridge_Controller_XXXXXXXX-if00-port0
+   ```
+
+   (`ls /dev/serial/by-id/` on the host shows the exact name.) Pick this by-id path when setting
+   up: unlike `/dev/ttyUSB0`, it stays the same across reboots and replugs. The port field also
+   accepts a typed path.
+
+   With the linuxserver.io image, Home Assistant only gets access to devices named
+   `/dev/ttyUSB*` or `/dev/ttyACM*` inside the container, so give the stick such a name there
+   and enter that name in the setup:
+
+   ```yaml
+       devices:
+         - /dev/serial/by-id/usb-Silicon_Labs_CP2104_USB_to_UART_Bridge_Controller_XXXXXXXX-if00-port0:/dev/ttyUSB-SAL01
+   ```
+3. Home Assistant usually discovers the stick by itself. Otherwise go to
+   **Settings → Devices & Services → Add Integration → JG Aura** and pick **Local**.
+
+The stick does not know thermostat names, so a new local entry shows them as "Thermostat bea0"
+and so on; rename them in Home Assistant.
+
+### Moving from the cloud to the stick
+
+A cloud entry can be switched to the stick. Entities, names, automations and history are kept:
+
+1. Move the SAL01 to the Home Assistant host (step 1 and 2 above).
+2. **Settings → Devices & Services → JG Aura → ⋮ → Reconfigure**, and pick the stick's port.
+
+Hot water control is only available through the cloud.
+
+## Cloud setup
+
+1. Go to **Settings → Devices & Services → Add Integration → JG Aura** and pick **Cloud**.
+2. Enter your credentials:
+   - **Email** and **Password**: your JG Aura account
+   - **Host** (optional): defaults to `https://emea-salprod02-api.arrayent.com:8081/zdk/services/zamapi`
+   - **Refresh Rate** (optional): polling interval in seconds (default: 30)
+   - **Enable Hot Water**: whether to expose hot water control (default: on)
 
 ## Usage
 
-### Thermostats
+Thermostats appear as `climate.<name>` entities: set the temperature, change presets and see the
+room temperature and whether the thermostat is heating. Thermostats in Frost ignore target
+temperature changes; pick another preset first.
 
-Once configured, thermostats will appear as `climate.<name>` entities:
+Hot water (cloud only) appears as `switch.hot_water`.
 
-- Set temperature via the thermostat card
-- Change preset modes (Auto, High, Medium, Low, Party, Away, Frost)
-- View current temperature and heating state
+## How it works
 
-### Hot Water
-
-Hot water control appears as `switch.hot_water`:
-
-- Turn on/off to control hot water heating
-
-## How It Works
-
-- **Data Flow**: The integration polls the JG Aura API every 30 seconds (configurable) to fetch thermostat and hot water status
-- **API Communication**: Uses HTTP/XML endpoints for authentication and device state queries
-- **State Changes**: When you change a setting (temperature, preset mode, hot water), the command is sent to the API and an immediate refresh is triggered to confirm the state change in Home Assistant
-- **No External Dependencies**: Uses only Home Assistant and Python standard library
+- **Local**: the integration talks to the SAL01 over its serial port; the protocol is
+  documented in [docs/protocol.md](docs/protocol.md). Thermostats send
+  a report on every change. Every 30 minutes the integration sets the thermostats' clocks to Home
+  Assistant's local time, which also makes all of them report. Every 5 minutes it tells the
+  thermostats a gateway is online, as the JG Aura gateway does, so their globe icon stays solid.
+- **Cloud**: the integration polls the JG Aura HTTP/XML API.
 
 ## Troubleshooting
 
-### Enable Debug Logging
-
-Add this to `configuration.yaml` to see detailed integration logs:
+Enable debug logging in `configuration.yaml`:
 
 ```yaml
 logger:
@@ -67,23 +110,27 @@ logger:
     custom_components.jg_aura: debug
 ```
 
-### State Not Updating
+- **"The SAL01 stick did not answer"**: check the stick is plugged in, passed into the container
+  and not used by another program.
+- **Stick unplugged**: the integration retries until it is back.
+- **Diagnostics**: **Settings → Devices & Services → JG Aura → ⋮ → Download diagnostics** includes
+  the last report of each thermostat.
 
-If entity state doesn't update after a change:
-- Check the integration logs for API errors
-- Verify your credentials are correct
-- Ensure your JG Aura account can access the API from your Home Assistant location
+## Development
 
-### Integration Not Loading
+Tests run in Docker:
 
-Ensure you've restarted Home Assistant after adding the integration, or use the "Reload" option in **Settings → Devices & Services**.
+```bash
+docker build -t jg-aura-ha-test -f Dockerfile.test .
+docker run --rm -v "$PWD":/src jg-aura-ha-test pytest
+```
 
 ## Architecture
 
-- `climate.py`: Thermostat entity implementation
-- `switch.py`: Hot water entity implementation  
-- `config_flow.py`: Configuration UI
-- `jg_client.py`: JG Aura API client (HTTP/XML parsing)
-- `httpClient.py`: Low-level HTTP retry logic
-
-Enjoy.
+- `climate.py`: thermostat entities
+- `switch.py`: hot water entity (cloud)
+- `config_flow.py`: setup, USB discovery, reconfigure and reauth
+- `jg_client.py`: JG Aura cloud API client
+- `local_client.py`: SAL01 access with the same interface as `jg_client.py`
+- `sal01/`: the SAL01 serial protocol (frames, payloads, asyncio client)
+- `diagnostics.py`: diagnostics download

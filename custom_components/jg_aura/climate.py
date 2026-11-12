@@ -25,6 +25,7 @@ from homeassistant.helpers.update_coordinator import (
 from . import jg_client, thermostat
 from .__init__ import JGAuraConfigEntry
 from .const import CONF_REFRESH_RATE
+from .local_client import LocalClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,11 +53,22 @@ async def async_setup_entry(
         _LOGGER,
         name="climate",
         update_method=async_update_data,
-        update_interval=timedelta(seconds=refresh_rate),
+        # The stick pushes every change, so only the cloud needs polling.
+        update_interval=None
+        if isinstance(client, LocalClient)
+        else timedelta(seconds=refresh_rate),
         config_entry=entry,
     )
 
     await coordinator.async_config_entry_first_refresh()
+
+    if isinstance(client, LocalClient):
+        # The stick pushes a report on every change; no need to wait for a poll.
+        entry.async_on_unload(
+            client.subscribe(
+                lambda: coordinator.async_set_updated_data(client.gateway())
+            )
+        )
 
     def update_entities() -> None:
         """Update all entities when coordinator updates."""
@@ -95,7 +107,7 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
     def __init__(
         self,
         coordinator: DataUpdateCoordinator,
-        client: jg_client.JGClient,
+        client: jg_client.JGClient | LocalClient,
         gateway_id: str,
         device_id: str,
         name: str,
@@ -160,7 +172,7 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
         await self._client.set_thermostat_temperature(self._id, temperature)
         self.async_write_ha_state()
 
-        await asyncio.sleep(jg_client.API_DELAY_SECONDS)
+        await asyncio.sleep(self._client.refresh_delay)
         await self.coordinator.async_request_refresh()
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
@@ -169,7 +181,7 @@ class JGAuraThermostat(CoordinatorEntity, ClimateEntity):
         await self._client.set_thermostat_preset(self._id, preset_mode)
         self.async_write_ha_state()
 
-        await asyncio.sleep(jg_client.API_DELAY_SECONDS)
+        await asyncio.sleep(self._client.refresh_delay)
         await self.coordinator.async_request_refresh()
 
     def set_values(self, therm: thermostat.Thermostat) -> None:

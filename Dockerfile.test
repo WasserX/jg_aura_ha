@@ -1,0 +1,6 @@
+# Test image: runs Home Assistant's test harness without installing anything on the host.
+FROM python:3.13
+RUN apt-get update && apt-get install -y --no-install-recommends git libturbojpeg0 && rm -rf /var/lib/apt/lists/*
+COPY requirements_test.txt /tmp/requirements_test.txt
+RUN pip install --no-cache-dir -r /tmp/requirements_test.txt
+WORKDIR /src

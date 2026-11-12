@@ -1,12 +1,28 @@
 {
   "domain": "jg_aura",
   "name": "JGAura Thermostat",
-  "codeowners": ["@ek5932"],
+  "codeowners": [
+    "@ek5932",
+    "@WasserX"
+  ],
   "config_flow": true,
-  "dependencies": [],
-  "documentation": "https://github.com/ek5932/jg_aura_ha",
-  "integration_type": "device",
-  "iot_class": "cloud_polling",
-    "requirements": ["defusedxml==0.7.1"],
-  "version": "2.0.0"
+  "dependencies": [
+    "usb"
+  ],
+  "documentation": "https://github.com/WasserX/jg_aura_ha",
+  "integration_type": "hub",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/WasserX/jg_aura_ha/issues",
+  "requirements": [
+    "defusedxml>=0.7.1",
+    "pyserial-asyncio-fast>=0.11"
+  ],
+  "usb": [
+    {
+      "vid": "10C4",
+      "pid": "EA60",
+      "description": "*cp2104*"
+    }
+  ],
+  "version": "3.0.0"
 }

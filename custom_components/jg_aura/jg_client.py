@@ -78,6 +78,8 @@ API_DELAY_SECONDS = 1.5
 class JGClient:
     """Client for interacting with JGAura API."""
 
+    refresh_delay = API_DELAY_SECONDS
+
     def __init__(self, host: str, email: str, password: str) -> None:
         """Initialize the client."""
         self.host = host

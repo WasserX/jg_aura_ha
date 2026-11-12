@@ -1,0 +1,71 @@
+{
+  "config": {
+    "flow_title": "SAL01 stick at {port}",
+    "abort": {
+      "already_configured": "This JG Aura account or stick is already configured.",
+      "reauth_successful": "Credentials updated successfully. The integration will now reload with the new credentials.",
+      "reconfigure_successful": "The integration now uses the SAL01 stick and will reload."
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to JGAura API. Please check your API host and internet connection.",
+      "cannot_connect_stick": "The SAL01 stick did not answer on this port. Check that it is plugged in and that no other program (such as the JG Aura gateway relay) is using it.",
+      "invalid_auth": "Invalid email or password. Please check your credentials and try again."
+    },
+    "step": {
+      "user": {
+        "title": "JG Aura setup",
+        "description": "How should Home Assistant reach your JG Aura thermostats?",
+        "menu_options": {
+          "local": "Local: SAL01 USB stick plugged into this machine (recommended)",
+          "cloud": "Cloud: JG Aura account (needs the JG Aura servers)"
+        }
+      },
+      "local": {
+        "title": "SAL01 USB stick",
+        "description": "Unplug the SAL01 stick from the JG Aura gateway and plug it into this machine, then pick its port.",
+        "data": {
+          "device": "Serial port"
+        }
+      },
+      "usb_confirm": {
+        "title": "SAL01 USB stick found",
+        "description": "Use the JG Aura SAL01 stick at {port}?"
+      },
+      "reconfigure": {
+        "title": "Switch to the SAL01 USB stick",
+        "description": "Control the thermostats through the SAL01 stick instead of the cloud. Entities keep their names, ids and history. Unplug the stick from the JG Aura gateway and plug it into this machine first. Hot water control is not available locally.",
+        "data": {
+          "device": "Serial port"
+        }
+      },
+      "cloud": {
+        "data": {
+          "email": "Email",
+          "host": "API Host (optional)",
+          "hot_water": "Enable Hot Water Control",
+          "password": "Password",
+          "refresh_rate": "Refresh Rate (seconds)"
+        },
+        "data_description": {
+          "host": "Leave blank to use the default EMEA API endpoint"
+        },
+        "description": "Enter your JGAura credentials to set up the integration.",
+        "title": "JGAura Thermostat Setup"
+      },
+      "reauth_confirm": {
+        "data": {
+          "email": "Email",
+          "host": "API Host (optional)",
+          "hot_water": "Enable Hot Water Control",
+          "password": "Password",
+          "refresh_rate": "Refresh Rate (seconds)"
+        },
+        "data_description": {
+          "host": "Leave blank to use the default EMEA API endpoint"
+        },
+        "description": "Your JGAura credentials for {email} are no longer valid. Please provide updated credentials.",
+        "title": "Update JGAura Credentials"
+      }
+    }
+  }
+}
