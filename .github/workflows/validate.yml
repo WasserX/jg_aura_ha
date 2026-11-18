@@ -19,3 +19,6 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+          # Installed as a custom repository: the HACS default-store
+          # requirements (brand icon, topics, issues, licence) don't apply.
+          ignore: brands topics issues license
